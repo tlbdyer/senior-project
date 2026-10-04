@@ -9,3 +9,6 @@ TestResults/
 # nix
 result
 result-*
+
+# weekly reports (submitted on Canvas)
+reports/

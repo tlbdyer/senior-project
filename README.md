@@ -40,3 +40,9 @@
 - .NET 10 SDK
 - VLC (on Windows / macOS it comes with a NuGet package)
 - on Nix: `nix develop`
+
+## Run
+
+- `dotnet build`
+- `dotnet test`
+- `dotnet run --project Tui`

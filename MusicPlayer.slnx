@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Core/Core.csproj" />
+  <Project Path="Tests/Tests.csproj" />
+  <Project Path="Tui/Tui.csproj" />
+</Solution>
