@@ -9,6 +9,7 @@
 ```
 Track
     path, title, artist, album, trackNumber, duration
+    genre, year   // can be missing, recommendations use them
 ```
 
 ## Library
@@ -24,7 +25,8 @@ scanLibrary(folder):
                 tags.title or file name,
                 tags.artist or "Unknown Artist",
                 tags.album or "Unknown Album",
-                tags.trackNumber, tags.duration) to tracks
+                tags.trackNumber, tags.duration,
+                tags.genre, tags.year) to tracks
     group tracks by artist, then by album
     sort each album by trackNumber
     return the groups

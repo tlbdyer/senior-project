@@ -6,4 +6,6 @@ public record Track(
     string Artist,
     string Album,
     int TrackNumber,
-    TimeSpan Duration);
+    TimeSpan Duration,
+    string? Genre = null,   // null = no tag
+    int? Year = null);
