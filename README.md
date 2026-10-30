@@ -14,6 +14,17 @@
 - help screen with the keys
 - album art (maybe)
 
+## Keys
+
+- `Enter` add the selected track, album or artist to the queue (starts playing if nothing is)
+- `Space` pause / resume
+- `n` / `p` next / previous track
+- `,` / `.` seek back / forward 5 seconds
+- `+` / `-` volume
+- `Delete` remove from the queue
+- `Tab` switch between library and queue
+- `?` help, `q` quit
+
 ## Algorithms
 
 1. Smart shuffle - spreads each artist's songs out so the same artist doesn't play twice in a row

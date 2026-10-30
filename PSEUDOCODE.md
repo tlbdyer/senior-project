@@ -75,15 +75,60 @@ IPlayer
     pause()
     resume()
     stop()
-    seek(seconds)
+    seek(position)
     setVolume(0-100)
-    position, duration, isPlaying
+    position, duration
     event TrackEnded
 
 VlcPlayer implements IPlayer using libvlc
+    // libvlc sends TrackEnded on its own thread, so it is passed to the app's thread first
+    // seek goes by fraction of the track (position / duration),
+    // seeking by time jumps to the end of some ogg files
 ```
 
 - interface so tests can use a fake player (no sound)
+
+## Playback
+
+- plays the queue; this was in the App, moved to Core so it can be tested with the fake player
+
+```
+Playback(queue, player)
+    nowPlaying = none   // none = stopped
+    paused = false
+    volume = 100
+    on player.TrackEnded: playNext()
+
+    playNext():
+        track = queue.next()
+        if track: play(track)
+        else: stop()
+
+    playPrevious():
+        track = queue.previous()
+        if track: play(track)
+
+    togglePause():
+        if nowPlaying is none: return
+        if paused: player.resume() else: player.pause()
+        paused = not paused
+
+    seek(by):
+        if nowPlaying is none: return
+        player.seek(position + by, kept between 0 and duration)
+
+    changeVolume(by):
+        volume = volume + by, kept between 0 and 100
+        player.setVolume(volume)
+
+    // duration comes from the tags until the player has opened the file
+    duration: player.duration if known, else nowPlaying.duration
+
+    play(track):
+        player.play(track.path)
+        nowPlaying = track
+        paused = false
+```
 
 ## Algorithms
 
@@ -236,9 +281,7 @@ fuzzyScore(word, text):
 ```
 main(args):
     library = scanLibrary(args[0] or ~/Music)
-    queue = new Queue
-    player = new VlcPlayer
-    on player.TrackEnded: playNext()   // have to switch to the UI thread first
+    playback = new Playback(new Queue, new VlcPlayer)
 
     draw: library tree | queue list
           now playing bar underneath
@@ -247,26 +290,16 @@ main(args):
 
 on key press:
     Enter  -> add selected track, album or artist to queue
-              if nothing is playing: playNext()
+              if nothing is playing: playback.playNext()
     Tab    -> switch between library and queue
-    Space  -> pause if playing, otherwise resume
-    n      -> playNext()
-    p      -> playPrevious()
-    Left / Right -> seek -5s / +5s
-    + / -  -> volume up / down
+    Space  -> playback.togglePause()
+    n / p  -> playback.playNext() / playPrevious()
+    , / .  -> playback.seek(-5s / +5s)   // Left / Right open and close the tree
+    + / -  -> playback.changeVolume(+5 / -5)
     Delete -> remove selected track from queue
     ?      -> show help screen
     q      -> stop and quit
 
-playNext():
-    track = queue.next()
-    if track: player.play(track.path)
-    else: player.stop()
-
-playPrevious():
-    track = queue.previous()
-    if track: player.play(track.path)
-
 updateNowPlaying():
-    show title - artist, position / duration, and a progress bar
+    show playing / paused, title - artist, position / duration, a progress bar and the volume
 ```

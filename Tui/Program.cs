@@ -1,4 +1,5 @@
 using Core;
+using LibVLCSharp.Shared;
 using Terminal.Gui.App;
 using Tui;
 
@@ -22,7 +23,22 @@ if (library.Tracks.Count == 0)
 }
 
 using IApplication app = Application.Create();
-app.Init();
 
-using var window = new MainWindow(library);
-app.Run(window);
+// before Init, so the error shows in the normal terminal and not under the app's screen
+VlcPlayer player;
+try
+{
+    player = new VlcPlayer(action => app.Invoke(action));
+}
+catch (VLCException e)
+{
+    Console.WriteLine($"could not start libvlc, is VLC installed? ({e.Message})");
+    return;
+}
+
+using (player)
+{
+    app.Init();
+    using var window = new MainWindow(app, library, new Playback(new Queue(), player));
+    app.Run(window);
+}

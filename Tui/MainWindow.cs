@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Core;
+using Terminal.Gui.App;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
@@ -9,24 +10,34 @@ namespace Tui;
 // the main screen: library | queue, now playing bar underneath
 public class MainWindow : Window
 {
-    const string KeysLine = " Enter add   Del remove   Tab switch side   ? help   q quit";
+    const string KeysLine = " Enter add   Space pause   n/p next/prev   ,/. seek   +/- volume   Del remove   Tab switch side   ? help   q quit";
 
     const string HelpText =
         "Up / Down     move\n" +
         "Left / Right  close / open an artist or album\n" +
         "Enter         add the selected track, album or artist to the queue\n" +
+        "Space         pause / resume\n" +
+        "n / p         next / previous track\n" +
+        ", / .         seek back / forward 5 seconds\n" +
+        "+ / -         volume up / down\n" +
         "Delete        remove the selected track from the queue\n" +
         "Tab           switch between library and queue\n" +
         "?             this help\n" +
         "q / Esc       quit";
 
-    readonly Queue queue = new();
+    const int BarWidth = 30;
+
+    readonly Playback playback;
+    readonly Queue queue;
     readonly TreeView<object> libraryTree = new() { Width = Dim.Fill(), Height = Dim.Fill() };
     readonly ListView queueList = new() { Width = Dim.Fill(), Height = Dim.Fill() };
+    readonly Label nowPlayingLabel = new() { Width = Dim.Fill() };
 
-    public MainWindow(Library library)
+    public MainWindow(IApplication app, Library library, Playback playback)
     {
         Title = "Music Player";
+        this.playback = playback;
+        queue = playback.Queue;
 
         // 4 rows at the bottom are for now playing (3) and the keys line (1)
         var libraryFrame = new FrameView
@@ -62,8 +73,46 @@ public class MainWindow : Window
 
         libraryFrame.Add(libraryTree);
         queueFrame.Add(queueList);
-        nowPlayingFrame.Add(new Label { Text = "nothing playing" });
+        nowPlayingFrame.Add(nowPlayingLabel);
         Add(libraryFrame, queueFrame, nowPlayingFrame, keysLine);
+
+        playback.TrackChanged += () =>
+        {
+            ShowQueue();
+            ShowNowPlaying();
+        };
+        ShowNowPlaying();
+
+        // the position moves on its own, so redraw it twice a second
+        app.AddTimeout(TimeSpan.FromMilliseconds(500), () =>
+        {
+            ShowNowPlaying();
+            return true;
+        });
+
+        // the tree and the list both use Space, so these go to the app, which sees keys before any view
+        app.Keyboard.KeyDown += (_, key) =>
+        {
+            if (key == Key.Space)
+                playback.TogglePause();
+            else if (key == Key.N)
+                playback.PlayNext();
+            else if (key == Key.P)
+                playback.PlayPrevious();
+            else if (key == ',')
+                playback.Seek(TimeSpan.FromSeconds(-5));
+            else if (key == '.')
+                playback.Seek(TimeSpan.FromSeconds(5));
+            else if (key == '+')
+                playback.ChangeVolume(5);
+            else if (key == '-')
+                playback.ChangeVolume(-5);
+            else
+                return;
+
+            ShowNowPlaying();
+            key.Handled = true;
+        };
 
         libraryTree.KeyDown += (_, key) =>
         {
@@ -144,6 +193,9 @@ public class MainWindow : Window
 
         foreach (var track in tracks)
             queue.Add(track);
+
+        if (playback.NowPlaying == null)
+            playback.PlayNext();
         ShowQueue();
     }
 
@@ -160,10 +212,34 @@ public class MainWindow : Window
     void ShowQueue()
     {
         var selected = queueList.SelectedItem ?? 0;
-        var rows = queue.Tracks.Select((track, i) => $"{i + 1}. {track.Title} - {track.Artist}");
+        var playing = playback.NowPlaying == null ? -1 : queue.Current;
+        var rows = queue.Tracks.Select((track, i) =>
+            $"{(i == playing ? "▶" : " ")} {i + 1}. {track.Title} - {track.Artist}");
 
         queueList.SetSource(new ObservableCollection<string>(rows));
         if (queue.Tracks.Count > 0)
             queueList.SelectedItem = Math.Min(selected, queue.Tracks.Count - 1);
     }
+
+    void ShowNowPlaying()
+    {
+        if (playback.NowPlaying is not Track track)
+        {
+            nowPlayingLabel.Text = $"nothing playing   vol {playback.Volume}%";
+            return;
+        }
+
+        var position = playback.Position;
+        var duration = playback.Duration;
+        var filled = duration > TimeSpan.Zero
+            ? (int)(BarWidth * Math.Min(position / duration, 1))
+            : 0;
+        var bar = new string('#', filled) + new string('-', BarWidth - filled);
+        var state = playback.Paused ? "paused " : "playing";
+
+        nowPlayingLabel.Text =
+            $"{state}  {track.Title} - {track.Artist}   {Time(position)} / {Time(duration)}  [{bar}]  vol {playback.Volume}%";
+    }
+
+    static string Time(TimeSpan t) => $"{(int)t.TotalMinutes}:{t.Seconds:00}";
 }
