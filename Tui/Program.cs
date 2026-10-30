@@ -1,6 +1,7 @@
 using Core;
+using Terminal.Gui.App;
+using Tui;
 
-// placeholder until the real UI, scans a folder and prints what it found
 var folder = args.Length > 0
     ? args[0]
     : Environment.GetFolderPath(Environment.SpecialFolder.MyMusic, Environment.SpecialFolderOption.DoNotVerify);
@@ -11,17 +12,17 @@ if (!Directory.Exists(folder))
     return;
 }
 
+Console.WriteLine($"scanning {folder}...");
 var library = Library.Scan(folder);
 
-foreach (var artist in library.Artists)
+if (library.Tracks.Count == 0)
 {
-    Console.WriteLine(artist.Name);
-    foreach (var album in artist.Albums)
-    {
-        Console.WriteLine($"  {album.Title}");
-        foreach (var track in album.Tracks)
-            Console.WriteLine($"    {track.TrackNumber}. {track.Title} ({track.Duration:m\\:ss})");
-    }
+    Console.WriteLine($"no music found in {folder}");
+    return;
 }
 
-Console.WriteLine($"{library.Tracks.Count} tracks");
+using IApplication app = Application.Create();
+app.Init();
+
+using var window = new MainWindow(library);
+app.Run(window);

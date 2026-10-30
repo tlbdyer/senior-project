@@ -246,8 +246,9 @@ main(args):
     run until quit
 
 on key press:
-    Enter  -> add selected track or album to queue
+    Enter  -> add selected track, album or artist to queue
               if nothing is playing: playNext()
+    Tab    -> switch between library and queue
     Space  -> pause if playing, otherwise resume
     n      -> playNext()
     p      -> playPrevious()

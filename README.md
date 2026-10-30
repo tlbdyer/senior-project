@@ -45,4 +45,5 @@
 
 - `dotnet build`
 - `dotnet test`
-- `dotnet run --project Tui`
+- `dotnet run --project Tui` (uses your Music folder)
+- `dotnet run --project Tui -- <folder>`
