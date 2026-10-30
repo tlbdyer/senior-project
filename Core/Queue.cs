@@ -4,15 +4,26 @@ public class Queue
 {
     readonly List<Track> tracks = [];
 
+    // order before shuffling, null when not shuffled
+    List<Track>? original;
+
     public IReadOnlyList<Track> Tracks => tracks;
 
     // -1 means nothing played yet
     public int Current { get; private set; } = -1;
 
-    public void Add(Track track) => tracks.Add(track);
+    public bool Shuffled => original != null;
+
+    public void Add(Track track)
+    {
+        tracks.Add(track);
+        original?.Add(track);
+    }
 
     public void Remove(int i)
     {
+        // with duplicates this may remove the other copy from original
+        original?.Remove(tracks[i]);
         tracks.RemoveAt(i);
         if (i <= Current)
             Current--;
@@ -42,6 +53,28 @@ public class Queue
     {
         tracks.Clear();
         Current = -1;
+        original = null;
+    }
+
+    // shuffles only the tracks not played yet, unshuffle restores the old order
+    // Move while shuffled only changes the shuffled order
+    public void ToggleShuffle(Random random)
+    {
+        if (original != null)
+        {
+            var playing = Current >= 0 ? tracks[Current] : null;
+            tracks.Clear();
+            tracks.AddRange(original);
+            Current = playing == null ? -1 : tracks.IndexOf(playing);
+            original = null;
+        }
+        else
+        {
+            original = [.. tracks];
+            var upcoming = tracks.Skip(Current + 1).ToList();
+            tracks.RemoveRange(Current + 1, upcoming.Count);
+            tracks.AddRange(Shuffle.Smart(upcoming, random));
+        }
     }
 
     public Track? Next()

@@ -228,10 +228,16 @@ Queue
             replace the tracks after current with smartShuffle(those tracks, random)
         shuffled = not shuffled
 
-    // note: while shuffled, add and remove have to update original too
+    add(track): also append to original if shuffled
+    remove(i): also remove tracks[i] from original if shuffled
+        // if the track is in the queue twice this can take out the other copy,
+        // so after unshuffling the one left may sit where the other was
+    clear(): also turns shuffle off
 ```
 
 ### 2. Recommendations
+
+- not built yet, only declared in the code (`IRecommender`): `record(track, finished)` and `recommend(last, library, random)`
 
 - picks the next song when the queue runs out and autoplay is on
 - score = listening history (Markov chain of what gets played after what) + tag similarity
@@ -284,7 +290,7 @@ recommend(last, library, history, random):
 
 - search as you type
 - letters have to be in order but not next to each other (`dsotm` finds Dark Side of the Moon)
-- letters at the start of words and fewer gaps rank higher
+- letters at the start of words, letters next to each other and fewer gaps rank higher
 - O(n * text length) per keypress, n = number of tracks
 
 ```
@@ -312,10 +318,14 @@ fuzzyScore(word, text):
     // step 2: go back from end to get the shortest window, scoring along the way
     score = 0
     j = end
+    after = -1   // where the letter after this one matched
     for each letter c in word, starting from the last one:
         move j back until text[j] == c
-        if j == 0 or text[j - 1] == ' ':
-            score += 3   // letter is at the start of a word
+        if j == 0 or text[j - 1] is not a letter or digit:
+            score += 3   // letter is at the start of a word ("dc" in "ac/dc" too)
+        if j + 1 == after:
+            score += 1   // right before the letter after it
+        after = j
         j -= 1
     start = j + 1
 
@@ -324,6 +334,8 @@ fuzzyScore(word, text):
 ```
 
 - `/` opens the search box, results update on every keypress
+- the +1 for letters next to each other came from testing: without it "money" put
+  Harvest Moon (Neil Young) above Money, the word starts in "moon neil young" outscored the gaps
 
 ## App (Tui project)
 
@@ -348,6 +360,10 @@ on key press:
     , / .  -> playback.seek(-5s / +5s)   // Left / Right open and close the tree
     + / -  -> playback.changeVolume(+5 / -5)
     Delete -> remove selected track from queue
+    s      -> queue.toggleShuffle(random), queue title says "(shuffled)"
+    /      -> search box: search(text, library) on every keypress,
+              Up / Down pick a result, Enter adds it, Esc closes
+              // the player keys are off while it's open, or typing "n" would skip the song
     ?      -> show help screen
     q      -> stop and quit
 

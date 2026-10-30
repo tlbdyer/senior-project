@@ -10,7 +10,7 @@ namespace Tui;
 // the main screen: library | queue, now playing bar underneath
 public class MainWindow : Window
 {
-    const string KeysLine = " Enter add   Space pause   n/p next/prev   ,/. seek   +/- volume   Del remove   Tab switch side   ? help   q quit";
+    const string KeysLine = " Enter add   Space pause   n/p next/prev   ,/. seek   +/- volume   Del remove   s shuffle   / search   Tab switch side   ? help   q quit";
 
     const string HelpText =
         "Up / Down     move\n" +
@@ -21,21 +21,30 @@ public class MainWindow : Window
         ", / .         seek back / forward 5 seconds\n" +
         "+ / -         volume up / down\n" +
         "Delete        remove the selected track from the queue\n" +
+        "s             shuffle / unshuffle the songs not played yet\n" +
+        "/             search, Up / Down pick, Enter add to the queue, Esc close\n" +
         "Tab           switch between library and queue\n" +
         "?             this help\n" +
         "q / Esc       quit";
 
     const int BarWidth = 30;
 
+    readonly Library library;
     readonly Playback playback;
     readonly Queue queue;
+    readonly Random random = new();
     readonly TreeView<object> libraryTree = new() { Width = Dim.Fill(), Height = Dim.Fill() };
     readonly ListView queueList = new() { Width = Dim.Fill(), Height = Dim.Fill() };
     readonly Label nowPlayingLabel = new() { Width = Dim.Fill() };
+    readonly FrameView queueFrame;
+
+    // while searching, typed letters go to the search box, not the player
+    bool searching;
 
     public MainWindow(IApplication app, string sourceName, Library library, Playback playback)
     {
         Title = $"Music Player - {sourceName}";
+        this.library = library;
         this.playback = playback;
         queue = playback.Queue;
 
@@ -46,7 +55,7 @@ public class MainWindow : Window
             Width = Dim.Percent(50),
             Height = Dim.Fill(4),
         };
-        var queueFrame = new FrameView
+        queueFrame = new FrameView
         {
             Title = "Queue",
             X = Pos.Right(libraryFrame),
@@ -93,6 +102,9 @@ public class MainWindow : Window
         // the tree and the list both use Space, so these go to the app, which sees keys before any view
         app.Keyboard.KeyDown += (_, key) =>
         {
+            if (searching)
+                return;
+
             if (key == Key.Space)
                 playback.TogglePause();
             else if (key == Key.N)
@@ -146,6 +158,17 @@ public class MainWindow : Window
                 ShowHelp();
                 key.Handled = true;
             }
+            else if (key == Key.S)
+            {
+                queue.ToggleShuffle(random);
+                ShowQueue();
+                key.Handled = true;
+            }
+            else if (key == '/')
+            {
+                ShowSearch();
+                key.Handled = true;
+            }
             else if (key == Key.Tab)
             {
                 // Tab only moves inside one frame by default, so switch sides by hand
@@ -165,6 +188,55 @@ public class MainWindow : Window
         dialog.Add(new Label { Text = HelpText });
         dialog.AddButton(new Button { Title = "OK" });
         App!.Run(dialog);
+    }
+
+    // focus stays in the text box, Up / Down move through the results
+    void ShowSearch()
+    {
+        using var dialog = new Dialog { Title = "Search", Width = Dim.Percent(80), Height = Dim.Percent(80) };
+        var field = new TextField { Width = Dim.Fill() };
+        var list = new ListView { Y = 1, Width = Dim.Fill(), Height = Dim.Fill() };
+        List<Track> results = [];
+
+        void Update()
+        {
+            results = FuzzySearch.Search(field.Text, library.Tracks);
+            var rows = results.Select(t => $"{t.Title} - {t.Artist} ({t.Album})");
+            list.SetSource(new ObservableCollection<string>(rows));
+            if (results.Count > 0)
+                list.SelectedItem = 0;
+        }
+
+        field.TextChanged += (_, _) => Update();
+        field.KeyDown += (_, key) =>
+        {
+            if (key == Key.CursorDown)
+                list.MoveDown();
+            else if (key == Key.CursorUp)
+                list.MoveUp();
+            else if (key == Key.Enter)
+            {
+                if (list.SelectedItem is int i && i < results.Count)
+                    AddToQueue([results[i]]);
+                App!.RequestStop();
+            }
+            else
+                return;
+            key.Handled = true;
+        };
+
+        dialog.Add(field, list);
+        Update();
+
+        searching = true;
+        try
+        {
+            App!.Run(dialog);
+        }
+        finally
+        {
+            searching = false;
+        }
     }
 
     static IEnumerable<object> Children(object node) => node switch
@@ -192,6 +264,11 @@ public class MainWindow : Window
             _ => [],
         };
 
+        AddToQueue(tracks);
+    }
+
+    void AddToQueue(IEnumerable<Track> tracks)
+    {
         foreach (var track in tracks)
             queue.Add(track);
 
@@ -212,6 +289,8 @@ public class MainWindow : Window
     // redraws the list from the queue, keeping the cursor where it was
     void ShowQueue()
     {
+        queueFrame.Title = queue.Shuffled ? "Queue (shuffled)" : "Queue";
+
         var selected = queueList.SelectedItem ?? 0;
         var playing = playback.NowPlaying == null ? -1 : queue.Current;
         var rows = queue.Tracks.Select((track, i) =>

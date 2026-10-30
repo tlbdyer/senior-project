@@ -23,13 +23,15 @@
 - `,` / `.` seek back / forward 5 seconds
 - `+` / `-` volume
 - `Delete` remove from the queue
+- `s` shuffle / unshuffle the songs not played yet
+- `/` search (Up / Down pick, Enter add to the queue, Esc close)
 - `Tab` switch between library and queue
 - `?` help, `q` quit
 
 ## Algorithms
 
 1. Smart shuffle - spreads each artist's songs out so the same artist doesn't play twice in a row
-2. Recommendations - picks the next song when the queue runs out, from listening history and tags
+2. Recommendations - picks the next song when the queue runs out, from listening history and tags (designed, not built yet)
 3. Fuzzy search - search as you type, letters have to be in order but not next to each other
 
 ## Stack

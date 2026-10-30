@@ -137,4 +137,72 @@ public class QueueTests
         Assert.Empty(queue.Tracks);
         Assert.Equal(-1, queue.Current);
     }
+
+    [Fact]
+    public void ShuffleOnlyMovesTracksNotPlayedYet()
+    {
+        var queue = QueueOf("a", "b", "c", "d", "e", "f");
+        queue.Next();
+        queue.Next();
+
+        queue.ToggleShuffle(new Random(1));
+
+        Assert.True(queue.Shuffled);
+        Assert.Equal(1, queue.Current);
+        Assert.Equal(["a", "b"], Titles(queue)[..2]);
+        Assert.Equal(["c", "d", "e", "f"], Titles(queue)[2..].Order());
+    }
+
+    [Fact]
+    public void UnshuffleGoesBackAndKeepsThePlayingTrack()
+    {
+        var queue = QueueOf("a", "b", "c", "d", "e", "f");
+        queue.Next();
+        queue.ToggleShuffle(new Random(1));
+        queue.Next();
+        queue.Next();
+        var playing = queue.Tracks[queue.Current];
+
+        queue.ToggleShuffle(new Random(1));
+
+        Assert.False(queue.Shuffled);
+        Assert.Equal(["a", "b", "c", "d", "e", "f"], Titles(queue));
+        Assert.Equal(playing, queue.Tracks[queue.Current]);
+    }
+
+    [Fact]
+    public void UnshuffleBeforeAnythingPlayedStaysAtTheStart()
+    {
+        var queue = QueueOf("a", "b", "c");
+
+        queue.ToggleShuffle(new Random(1));
+        queue.ToggleShuffle(new Random(1));
+
+        Assert.Equal(["a", "b", "c"], Titles(queue));
+        Assert.Equal(-1, queue.Current);
+    }
+
+    [Fact]
+    public void AddAndRemoveWhileShuffledAreKeptAfterUnshuffle()
+    {
+        var queue = QueueOf("a", "b", "c");
+        queue.ToggleShuffle(new Random(1));
+
+        queue.Add(T("d"));
+        queue.Remove(Array.IndexOf(Titles(queue), "b"));
+        queue.ToggleShuffle(new Random(1));
+
+        Assert.Equal(["a", "c", "d"], Titles(queue));
+    }
+
+    [Fact]
+    public void ClearEndsShuffle()
+    {
+        var queue = QueueOf("a", "b");
+        queue.ToggleShuffle(new Random(1));
+
+        queue.Clear();
+
+        Assert.False(queue.Shuffled);
+    }
 }
