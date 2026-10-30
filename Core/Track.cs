@@ -1,7 +1,7 @@
 namespace Core;
 
 public record Track(
-    string Path,
+    string Id,   // the file path, or the song's id on the server
     string Title,
     string Artist,
     string Album,

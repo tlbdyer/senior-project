@@ -1,12 +1,13 @@
 # Terminal Music Player
 
 - music player for the terminal, written in C# (.NET 10)
-- plays music from a local folder
+- plays music from a local folder, or streams it from a Subsonic server (Navidrome, Gonic, ...)
 - keyboard only
 
 ## Features
 
 - scan a folder and read tags (title, artist, album, track no., genre, year, duration)
+- or load the library from a Subsonic server and stream the songs, nothing downloaded first
 - browse artist -> album -> track
 - play / pause / stop / next / previous / seek / volume
 - queue: add, remove, reorder, clear
@@ -45,6 +46,8 @@
 - Tui: the terminal app
 - Tests: xUnit tests for Core
 - the player is behind an IPlayer interface so tests can use a fake one
+- the music comes from an IMusicSource: FolderSource (files) or SubsonicSource (a server)
+- SubsonicClient talks to the server with HttpClient + System.Text.Json (no extra library)
 
 ## Requirements
 
@@ -56,5 +59,8 @@
 
 - `dotnet build`
 - `dotnet test`
-- `dotnet run --project Tui` (uses your Music folder)
+- `dotnet run --project Tui` (uses Music/ folder)
 - `dotnet run --project Tui -- <folder>`
+- `dotnet run --project Tui -- --server <url> --user <name> --password-file <file>`
+  - the password is read from a file so it never shows up in the process list
+  - the server has to be https (plain http only to this machine, for testing)

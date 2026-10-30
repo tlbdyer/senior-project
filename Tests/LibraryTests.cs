@@ -60,7 +60,7 @@ public class LibraryTests : IDisposable
 
         var track = Assert.Single(Library.Scan(folder).Tracks);
 
-        Assert.Equal(path, track.Path);
+        Assert.Equal(path, track.Id);
         Assert.Equal("untitled", track.Title);
         Assert.Equal("Unknown Artist", track.Artist);
         Assert.Equal("Unknown Album", track.Album);

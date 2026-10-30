@@ -14,7 +14,7 @@ public class PlaybackTests
         var queue = new Queue();
         foreach (var title in titles)
             queue.Add(T(title));
-        return new Playback(queue, player);
+        return new Playback(queue, player, new FakeSource());
     }
 
     [Fact]
@@ -34,11 +34,11 @@ public class PlaybackTests
 
         playback.PlayNext();
         Assert.Equal("A", playback.NowPlaying?.Title);
-        Assert.Equal("A.mp3", player.Playing);
+        Assert.Equal("stream/A.mp3", player.Playing);
 
         playback.PlayNext();
         Assert.Equal("B", playback.NowPlaying?.Title);
-        Assert.Equal("B.mp3", player.Playing);
+        Assert.Equal("stream/B.mp3", player.Playing);
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public class PlaybackTests
         playback.PlayPrevious();
 
         Assert.Equal("A", playback.NowPlaying?.Title);
-        Assert.Equal("A.mp3", player.Playing);
+        Assert.Equal("stream/A.mp3", player.Playing);
     }
 
     [Fact]
@@ -109,7 +109,7 @@ public class PlaybackTests
         player.EndTrack();
 
         Assert.Equal("B", playback.NowPlaying?.Title);
-        Assert.Equal("B.mp3", player.Playing);
+        Assert.Equal("stream/B.mp3", player.Playing);
     }
 
     [Fact]

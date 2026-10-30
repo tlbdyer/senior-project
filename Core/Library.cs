@@ -80,6 +80,6 @@ public class Library
     }
 
     // a tag that is only spaces counts as missing
-    static string OrDefault(string? value, string fallback) =>
+    internal static string OrDefault(string? value, string fallback) =>
         string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
 }

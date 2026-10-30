@@ -8,7 +8,7 @@
 
 ```
 Track
-    path, title, artist, album, trackNumber, duration
+    id, title, artist, album, trackNumber, duration   // id: the file path, or the song id on a server
     genre, year   // can be missing, recommendations use them
 ```
 
@@ -30,6 +30,54 @@ scanLibrary(folder):
     group tracks by artist, then by album
     sort each album by trackNumber
     return the groups
+```
+
+## Sources
+
+- the library comes from a folder or from a Subsonic server; the rest of the app doesn't care which
+
+```
+IMusicSource
+    name          // shown in the title
+    load()        // returns a Library
+    open(track)   // what the player opens: a file path or a stream url
+
+FolderSource(folder)
+    load(): scanLibrary(folder)
+    open(track): track.id   // a local track's id is its path
+
+SubsonicSource(client)
+    load(): Library(client.allSongs())
+    open(track): client.streamUrl(track.id)   // signed when played, never stored
+```
+
+## Subsonic client
+
+```
+SubsonicClient(server, user, password)
+    refuse http unless the server is this machine   // the token below is easy to attack if seen
+
+    url(endpoint, params):
+        salt = 16 random hex characters, new for every request
+        token = md5(password + salt)
+        return server/rest/endpoint?u=user&t=token&s=salt&v=1.16.1&c=senior-project&f=json&params
+
+    get(endpoint, params):
+        answer = http get url(endpoint, params)   // 15s timeout
+        if it failed, isn't 200, isn't json, or status != "ok": error with a readable message
+        return answer["subsonic-response"]
+
+    ping(): get("ping")   // checks address and login before the app starts
+
+    allSongs():
+        tracks = []
+        repeat:
+            page = get("search3", query = "", songCount = 500, songOffset = length(tracks)).songs
+            add each song to tracks as a Track (same defaults as missing tags)
+        until length(page) < 500
+        return tracks
+
+    streamUrl(id): url("stream", id, format = raw)   // raw: the server doesn't convert the file
 ```
 
 ## Queue
@@ -71,7 +119,7 @@ Queue
 
 ```
 IPlayer
-    play(path)
+    play(location)   // a file path or an http(s) url
     pause()
     resume()
     stop()
@@ -82,6 +130,7 @@ IPlayer
 
 VlcPlayer implements IPlayer using libvlc
     // libvlc sends TrackEnded on its own thread, so it is passed to the app's thread first
+    // a stream or file that fails to play counts as ended, so it gets skipped
     // seek goes by fraction of the track (position / duration),
     // seeking by time jumps to the end of some ogg files
 ```
@@ -93,7 +142,7 @@ VlcPlayer implements IPlayer using libvlc
 - plays the queue; this was in the App, moved to Core so it can be tested with the fake player
 
 ```
-Playback(queue, player)
+Playback(queue, player, source)
     nowPlaying = none   // none = stopped
     paused = false
     volume = 100
@@ -125,7 +174,7 @@ Playback(queue, player)
     duration: player.duration if known, else nowPlaying.duration
 
     play(track):
-        player.play(track.path)
+        player.play(source.open(track))
         nowPlaying = track
         paused = false
 ```
@@ -280,8 +329,10 @@ fuzzyScore(word, text):
 
 ```
 main(args):
-    library = scanLibrary(args[0] or ~/Music)
-    playback = new Playback(new Queue, new VlcPlayer)
+    source = SubsonicSource(server, user, password from file) if --server
+             else FolderSource(args[0] or ~/Music)
+    library = source.load()   // errors are printed before the screen opens
+    playback = new Playback(new Queue, new VlcPlayer, source)
 
     draw: library tree | queue list
           now playing bar underneath

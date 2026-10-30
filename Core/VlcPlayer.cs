@@ -21,22 +21,28 @@ public sealed class VlcPlayer : IPlayer, IDisposable
         libvlc = new LibVLC("--no-video");
         player = new MediaPlayer(libvlc);
 
-        player.EndReached += (_, _) =>
-        {
-            var ended = playCount;
-            dispatch(() =>
-            {
-                if (ended == playCount)
-                    TrackEnded?.Invoke();
-            });
-        };
+        // a stream that fails (server gone, broken file) is skipped like one that ended
+        player.EncounteredError += (_, _) => Ended(dispatch);
+        player.EndReached += (_, _) => Ended(dispatch);
     }
 
-    public void Play(string path)
+    void Ended(Action<Action> dispatch)
+    {
+        var ended = playCount;
+        dispatch(() =>
+        {
+            if (ended == playCount)
+                TrackEnded?.Invoke();
+        });
+    }
+
+    public void Play(string location)
     {
         playCount++;
         // the player keeps its own reference to the media, so this one can be disposed
-        using var media = new Media(libvlc, path, FromType.FromPath);
+        using var media = Uri.TryCreate(location, UriKind.Absolute, out var url) && !url.IsFile
+            ? new Media(libvlc, url)
+            : new Media(libvlc, location, FromType.FromPath);
         player.Play(media);
         player.Volume = volume;
     }

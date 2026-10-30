@@ -3,7 +3,8 @@ namespace Core;
 // the sound side of the player, so tests can swap in a fake one with no sound
 public interface IPlayer
 {
-    void Play(string path);
+    // a file path or an http(s) url
+    void Play(string location);
     void Pause();
     void Resume();
     void Stop();

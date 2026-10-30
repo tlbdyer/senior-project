@@ -4,6 +4,7 @@ namespace Core;
 public class Playback
 {
     readonly IPlayer player;
+    readonly IMusicSource source;
 
     public Queue Queue { get; }
 
@@ -17,10 +18,11 @@ public class Playback
     // the playing track changed or playback stopped, so the screen should redraw
     public event Action? TrackChanged;
 
-    public Playback(Queue queue, IPlayer player)
+    public Playback(Queue queue, IPlayer player, IMusicSource source)
     {
         Queue = queue;
         this.player = player;
+        this.source = source;
         player.Volume = Volume;
         player.TrackEnded += PlayNext;
     }
@@ -91,7 +93,7 @@ public class Playback
 
     void Play(Track track)
     {
-        player.Play(track.Path);
+        player.Play(source.Open(track));
         NowPlaying = track;
         Paused = false;
         TrackChanged?.Invoke();

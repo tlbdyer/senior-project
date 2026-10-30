@@ -33,9 +33,9 @@ public class MainWindow : Window
     readonly ListView queueList = new() { Width = Dim.Fill(), Height = Dim.Fill() };
     readonly Label nowPlayingLabel = new() { Width = Dim.Fill() };
 
-    public MainWindow(IApplication app, Library library, Playback playback)
+    public MainWindow(IApplication app, string sourceName, Library library, Playback playback)
     {
-        Title = "Music Player";
+        Title = $"Music Player - {sourceName}";
         this.playback = playback;
         queue = playback.Queue;
 
@@ -103,7 +103,8 @@ public class MainWindow : Window
                 playback.Seek(TimeSpan.FromSeconds(-5));
             else if (key == '.')
                 playback.Seek(TimeSpan.FromSeconds(5));
-            else if (key == '+')
+            // kitty sends shifted keys like + and ? with Shift held, so compare without it
+            else if (key.NoShift == '+')
                 playback.ChangeVolume(5);
             else if (key == '-')
                 playback.ChangeVolume(-5);
@@ -140,7 +141,7 @@ public class MainWindow : Window
                 App?.RequestStop();
                 key.Handled = true;
             }
-            else if (key == '?')
+            else if (key.NoShift == '?')
             {
                 ShowHelp();
                 key.Handled = true;
