@@ -10,7 +10,7 @@ namespace Tui;
 // the main screen: library | queue, now playing bar underneath
 public class MainWindow : Window
 {
-    const string KeysLine = " Enter add   Space pause   n/p next/prev   ,/. seek   +/- volume   Del remove   s shuffle   / search   Tab switch side   ? help   q quit";
+    const string KeysLine = " Enter add   Space pause   n/p next/prev   x stop   ,/. seek   +/- volume   Del remove   Shift+Up/Down move   c clear   s shuffle   / search   Tab switch side   ? help   q quit";
 
     const string HelpText =
         "Up / Down     move\n" +
@@ -20,7 +20,10 @@ public class MainWindow : Window
         "n / p         next / previous track\n" +
         ", / .         seek back / forward 5 seconds\n" +
         "+ / -         volume up / down\n" +
+        "x             stop\n" +
         "Delete        remove the selected track from the queue\n" +
+        "Shift+Up/Down move the selected track up / down the queue\n" +
+        "c             clear the queue\n" +
         "s             shuffle / unshuffle the songs not played yet\n" +
         "/             search, Up / Down pick, Enter add to the queue, Esc close\n" +
         "Tab           switch between library and queue\n" +
@@ -120,6 +123,14 @@ public class MainWindow : Window
                 playback.ChangeVolume(5);
             else if (key == '-')
                 playback.ChangeVolume(-5);
+            else if (key == Key.X)
+                playback.Stop();
+            else if (key == Key.C)
+            {
+                playback.Stop();
+                queue.Clear();
+                ShowQueue();
+            }
             else
                 return;
 
@@ -139,10 +150,15 @@ public class MainWindow : Window
         queueList.KeyDown += (_, key) =>
         {
             if (key == Key.Delete)
-            {
                 RemoveSelected();
-                key.Handled = true;
-            }
+            // KeyDown comes before the list's own Shift+Up / Shift+Down (extend selection)
+            else if (key == Key.CursorUp.WithShift)
+                MoveSelected(-1);
+            else if (key == Key.CursorDown.WithShift)
+                MoveSelected(1);
+            else
+                return;
+            key.Handled = true;
         };
 
         // keys that work on either side
@@ -283,6 +299,20 @@ public class MainWindow : Window
             return;
 
         queue.Remove(i);
+        ShowQueue();
+    }
+
+    // by = -1 up, 1 down; the cursor follows the track
+    void MoveSelected(int by)
+    {
+        if (queueList.SelectedItem is not int i || i >= queue.Tracks.Count)
+            return;
+        var j = i + by;
+        if (j < 0 || j >= queue.Tracks.Count)
+            return;
+
+        queue.Move(i, j);
+        queueList.SelectedItem = j;
         ShowQueue();
     }
 

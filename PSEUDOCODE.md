@@ -360,6 +360,9 @@ on key press:
     , / .  -> playback.seek(-5s / +5s)   // Left / Right open and close the tree
     + / -  -> playback.changeVolume(+5 / -5)
     Delete -> remove selected track from queue
+    Shift+Up / Shift+Down -> queue.move(selected, selected -/+ 1), cursor follows the track
+    x      -> playback.stop()
+    c      -> playback.stop(), queue.clear()
     s      -> queue.toggleShuffle(random), queue title says "(shuffled)"
     /      -> search box: search(text, library) on every keypress,
               Up / Down pick a result, Enter adds it, Esc closes

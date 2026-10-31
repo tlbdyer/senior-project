@@ -20,9 +20,12 @@
 - `Enter` add the selected track, album or artist to the queue (starts playing if nothing is)
 - `Space` pause / resume
 - `n` / `p` next / previous track
+- `x` stop
 - `,` / `.` seek back / forward 5 seconds
 - `+` / `-` volume
 - `Delete` remove from the queue
+- `Shift+Up` / `Shift+Down` move the selected track up / down the queue
+- `c` clear the queue
 - `s` shuffle / unshuffle the songs not played yet
 - `/` search (Up / Down pick, Enter add to the queue, Esc close)
 - `Tab` switch between library and queue
