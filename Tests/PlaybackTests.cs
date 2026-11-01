@@ -249,4 +249,87 @@ public class PlaybackTests
 
         Assert.Equal(2, changes);
     }
+
+    // remembers what it was told, always recommends "Rec"
+    class FakeRecommender : IRecommender
+    {
+        public List<(string Title, bool Finished)> Recorded { get; } = [];
+
+        public void Record(Track track, bool finished) => Recorded.Add((track.Title, finished));
+
+        public Track? Recommend(Track last, Library library, Random random) => T("Rec");
+    }
+
+    readonly FakeRecommender recommender = new();
+
+    Playback AutoplayOf(params string[] titles)
+    {
+        var queue = new Queue();
+        foreach (var title in titles)
+            queue.Add(T(title));
+        return new Playback(queue, player, new FakeSource(), new Library([]), recommender, new Random(1));
+    }
+
+    [Fact]
+    public void ATrackThatEndsIsRecordedAsFinished()
+    {
+        var playback = AutoplayOf("A", "B");
+        playback.PlayNext();
+
+        player.EndTrack();
+
+        Assert.Equal([("A", true)], recommender.Recorded);
+    }
+
+    [Fact]
+    public void NextRecordsTheTrackAsSkipped()
+    {
+        var playback = AutoplayOf("A", "B");
+        playback.PlayNext();
+
+        playback.PlayNext();
+
+        Assert.Equal([("A", false)], recommender.Recorded);
+    }
+
+    [Fact]
+    public void AutoplayQueuesARecommendationWhenTheQueueRunsOut()
+    {
+        var playback = AutoplayOf("A");
+        playback.PlayNext();
+
+        player.EndTrack();
+
+        Assert.Equal("Rec", playback.NowPlaying?.Title);
+        Assert.Equal(["A", "Rec"], playback.Queue.Tracks.Select(t => t.Title));
+        Assert.Equal("stream/Rec.mp3", player.Playing);
+    }
+
+    [Fact]
+    public void WithAutoplayOffTheEndOfTheQueueStops()
+    {
+        var playback = AutoplayOf("A");
+        playback.ToggleAutoplay();
+        playback.PlayNext();
+
+        player.EndTrack();
+
+        Assert.False(playback.Autoplay);
+        Assert.Null(playback.NowPlaying);
+        Assert.Single(playback.Queue.Tracks);
+    }
+
+    [Fact]
+    public void AFailedTrackIsSkippedButNotRecordedOrFollowedByAutoplay()
+    {
+        var playback = AutoplayOf("A", "B");
+        playback.PlayNext();
+
+        player.FailTrack();
+        Assert.Equal("B", playback.NowPlaying?.Title);
+
+        player.FailTrack();
+        Assert.Null(playback.NowPlaying);
+        Assert.Empty(recommender.Recorded);
+    }
 }

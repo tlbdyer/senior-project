@@ -12,7 +12,7 @@ class FakePlayer : IPlayer
     public TimeSpan Duration { get; set; }
     public int Volume { get; set; }
 
-    public event Action? TrackEnded;
+    public event Action<bool>? TrackEnded;
 
     public void Play(string path)
     {
@@ -30,5 +30,8 @@ class FakePlayer : IPlayer
     public void Seek(TimeSpan position) => Position = position;
 
     // what libvlc does when it reaches the end of the file
-    public void EndTrack() => TrackEnded?.Invoke();
+    public void EndTrack() => TrackEnded?.Invoke(true);
+
+    // what libvlc does when the file or stream can't be played
+    public void FailTrack() => TrackEnded?.Invoke(false);
 }

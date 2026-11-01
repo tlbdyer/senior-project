@@ -18,5 +18,6 @@ public interface IPlayer
     // 0 - 100
     int Volume { set; }
 
-    event Action? TrackEnded;
+    // false when the track failed to play (broken file, server gone)
+    event Action<bool>? TrackEnded;
 }

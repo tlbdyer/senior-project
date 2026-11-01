@@ -49,7 +49,9 @@ catch (VLCException e)
 using (player)
 {
     app.Init();
-    using var window = new MainWindow(app, source.Name, library, new Playback(new Queue(), player, source));
+    var recommender = new Recommender(new History(History.FileFor(source.Name)));
+    var playback = new Playback(new Queue(), player, source, library, recommender);
+    using var window = new MainWindow(app, source.Name, library, playback);
     app.Run(window);
 }
 
@@ -63,7 +65,8 @@ static IMusicSource ChooseSource(string[] args)
         : Environment.GetFolderPath(Environment.SpecialFolder.MyMusic, Environment.SpecialFolderOption.DoNotVerify);
     if (!Directory.Exists(folder))
         throw new ArgumentException($"folder not found: {folder}");
-    return new FolderSource(folder);
+    // full path: the track ids are paths, and the history has to match from any working directory
+    return new FolderSource(Path.GetFullPath(folder));
 }
 
 static IMusicSource ServerSource(string[] args)

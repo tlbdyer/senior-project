@@ -6,6 +6,14 @@ public class Playback
     readonly IPlayer player;
     readonly IMusicSource source;
 
+    // for autoplay, all null = no autoplay
+    readonly Library? library;
+    readonly IRecommender? recommender;
+    readonly Random random;
+
+    // the last track played, still set after stopping, so autoplay knows what to follow
+    Track? last;
+
     public Queue Queue { get; }
 
     // null when stopped
@@ -15,16 +23,23 @@ public class Playback
 
     public int Volume { get; private set; } = 100;
 
+    // when the queue runs out, add a recommended track and keep playing
+    public bool Autoplay { get; private set; } = true;
+
     // the playing track changed or playback stopped, so the screen should redraw
     public event Action? TrackChanged;
 
-    public Playback(Queue queue, IPlayer player, IMusicSource source)
+    public Playback(Queue queue, IPlayer player, IMusicSource source,
+        Library? library = null, IRecommender? recommender = null, Random? random = null)
     {
         Queue = queue;
         this.player = player;
         this.source = source;
+        this.library = library;
+        this.recommender = recommender;
+        this.random = random ?? new Random();
         player.Volume = Volume;
-        player.TrackEnded += PlayNext;
+        player.TrackEnded += OnTrackEnded;
     }
 
     public TimeSpan Position => NowPlaying == null ? TimeSpan.Zero : player.Position;
@@ -35,13 +50,50 @@ public class Playback
         : player.Duration > TimeSpan.Zero ? player.Duration
         : NowPlaying.Duration;
 
+    // the n key: whatever was playing counts as skipped
     public void PlayNext()
     {
+        if (NowPlaying != null)
+            recommender?.Record(NowPlaying, finished: false);
+        Advance(mayRecommend: true);
+    }
+
+    public void ToggleAutoplay() => Autoplay = !Autoplay;
+
+    // played = false: the track failed to play
+    void OnTrackEnded(bool played)
+    {
+        if (played && NowPlaying != null)
+            recommender?.Record(NowPlaying, finished: true);
+
+        // after a failure don't recommend, or a dead server would make autoplay try track after track
+        Advance(mayRecommend: played);
+    }
+
+    void Advance(bool mayRecommend)
+    {
         var track = Queue.Next();
+        if (track == null && mayRecommend)
+            track = QueueRecommended();
+
         if (track != null)
             Play(track);
         else
             Stop();
+    }
+
+    // adds a recommended track to the queue and moves to it, null if autoplay can't pick one
+    Track? QueueRecommended()
+    {
+        if (!Autoplay || recommender == null || library == null || last == null)
+            return null;
+
+        var pick = recommender.Recommend(last, library, random);
+        if (pick == null)
+            return null;
+
+        Queue.Add(pick);
+        return Queue.Next();
     }
 
     // at the first track this does nothing
@@ -95,6 +147,7 @@ public class Playback
     {
         player.Play(source.Open(track));
         NowPlaying = track;
+        last = track;
         Paused = false;
         TrackChanged?.Invoke();
     }

@@ -27,6 +27,7 @@
 - `Shift+Up` / `Shift+Down` move the selected track up / down the queue
 - `c` clear the queue
 - `s` shuffle / unshuffle the songs not played yet
+- `a` autoplay on / off: when the queue runs out, play a recommended song
 - `/` search (Up / Down pick, Enter add to the queue, Esc close)
 - `Tab` switch between library and queue
 - `?` help, `q` quit
@@ -34,7 +35,7 @@
 ## Algorithms
 
 1. Smart shuffle - spreads each artist's songs out so the same artist doesn't play twice in a row
-2. Recommendations - picks the next song when the queue runs out, from listening history and tags (designed, not built yet)
+2. Recommendations - picks the next song when the queue runs out, from listening history and tags (`a` turns autoplay on / off)
 3. Fuzzy search - search as you type, letters have to be in order but not next to each other
 
 ## Stack
@@ -52,6 +53,7 @@
 - Tests: xUnit tests for Core
 - the player is behind an IPlayer interface so tests can use a fake one
 - the music comes from an IMusicSource: FolderSource (files) or SubsonicSource (a server)
+- listening history is a log file per source under `~/.local/share/senior-project/` (AppData\Local on Windows)
 - SubsonicClient talks to the server with HttpClient + System.Text.Json (no extra library)
 
 ## Requirements

@@ -126,11 +126,11 @@ IPlayer
     seek(position)
     setVolume(0-100)
     position, duration
-    event TrackEnded
+    event TrackEnded(played)   // played = false: the file or stream failed
 
 VlcPlayer implements IPlayer using libvlc
     // libvlc sends TrackEnded on its own thread, so it is passed to the app's thread first
-    // a stream or file that fails to play counts as ended, so it gets skipped
+    // a stream or file that fails to play ends with played = false, so it gets skipped
     // seek goes by fraction of the track (position / duration),
     // seeking by time jumps to the end of some ogg files
 ```
@@ -142,14 +142,25 @@ VlcPlayer implements IPlayer using libvlc
 - plays the queue; this was in the App, moved to Core so it can be tested with the fake player
 
 ```
-Playback(queue, player, source)
+Playback(queue, player, source, library, recommender, random)   // the last three only for autoplay
     nowPlaying = none   // none = stopped
+    last = none         // last track played, kept after stop
     paused = false
     volume = 100
-    on player.TrackEnded: playNext()
+    autoplay = true
+    on player.TrackEnded(played):
+        if played: recommender.record(nowPlaying, finished = true)
+        advance(mayRecommend = played)   // a dead server must not make autoplay try track after track
 
-    playNext():
+    playNext():   // the n key
+        if nowPlaying: recommender.record(nowPlaying, finished = false)
+        advance(mayRecommend = true)
+
+    advance(mayRecommend):
         track = queue.next()
+        if no track and mayRecommend and autoplay and last:
+            track = recommender.recommend(last, library, random)
+            if track: queue.add(track), queue.next()
         if track: play(track)
         else: stop()
 
@@ -176,6 +187,7 @@ Playback(queue, player, source)
     play(track):
         player.play(source.open(track))
         nowPlaying = track
+        last = track
         paused = false
 ```
 
@@ -237,14 +249,16 @@ Queue
 
 ### 2. Recommendations
 
-- not built yet, only declared in the code (`IRecommender`): `record(track, finished)` and `recommend(last, library, random)`
+- `Core/History.cs` and `Core/Recommender.cs` (implements `IRecommender`)
 
 - picks the next song when the queue runs out and autoplay is on
 - score = listening history (Markov chain of what gets played after what) + tag similarity
 - O(n) per pick (one pass over the library)
 
 ```
-History   // saved to disk so it carries over between runs
+History   // saved to disk so it carries over between runs, one file per music source
+    // the file is a log, one line per play: "1<tab>id" finished, "0<tab>id" skipped
+    // recording a play appends one line (O(1)); starting up replays the log
     plays = []   // (track, finished) in the order they were played
     follows = map a -> map b -> count   // how many times b got played right after a
 
@@ -278,6 +292,7 @@ recommend(last, library, history, random):
             score -= 2
         add (score, t) to candidates
     return a random one of the top 5 candidates
+    // the top 5 are kept in a small sorted list while scanning (insertion), so no full sort: O(5n)
 ```
 
 - no history yet (first run): chance is 0 for everything, so it goes off the tags (cold start)
@@ -285,6 +300,7 @@ recommend(last, library, history, random):
   - `TrackEnded` -> `history.record(current, finished = true)`
   - `n` (skip) -> `history.record(current, finished = false)`
   - `playNext()`: queue empty + autoplay on -> queue `recommend(last played track, ...)` and play it
+  - a track that failed to play is not recorded and never starts autoplay
 
 ### 3. Fuzzy Search
 
@@ -364,6 +380,7 @@ on key press:
     x      -> playback.stop()
     c      -> playback.stop(), queue.clear()
     s      -> queue.toggleShuffle(random), queue title says "(shuffled)"
+    a      -> playback.toggleAutoplay(), the now playing line says "autoplay on/off"
     /      -> search box: search(text, library) on every keypress,
               Up / Down pick a result, Enter adds it, Esc closes
               // the player keys are off while it's open, or typing "n" would skip the song

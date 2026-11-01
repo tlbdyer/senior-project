@@ -10,7 +10,7 @@ namespace Tui;
 // the main screen: library | queue, now playing bar underneath
 public class MainWindow : Window
 {
-    const string KeysLine = " Enter add   Space pause   n/p next/prev   x stop   ,/. seek   +/- volume   Del remove   Shift+Up/Down move   c clear   s shuffle   / search   Tab switch side   ? help   q quit";
+    const string KeysLine = " Enter add   Space pause   n/p next/prev   x stop   ,/. seek   +/- volume   Del remove   Shift+Up/Down move   c clear   s shuffle   a autoplay   / search   Tab switch side   ? help   q quit";
 
     const string HelpText =
         "Up / Down     move\n" +
@@ -25,6 +25,7 @@ public class MainWindow : Window
         "Shift+Up/Down move the selected track up / down the queue\n" +
         "c             clear the queue\n" +
         "s             shuffle / unshuffle the songs not played yet\n" +
+        "a             autoplay on / off: when the queue runs out, play a recommended song\n" +
         "/             search, Up / Down pick, Enter add to the queue, Esc close\n" +
         "Tab           switch between library and queue\n" +
         "?             this help\n" +
@@ -125,6 +126,8 @@ public class MainWindow : Window
                 playback.ChangeVolume(-5);
             else if (key == Key.X)
                 playback.Stop();
+            else if (key == Key.A)
+                playback.ToggleAutoplay();
             else if (key == Key.C)
             {
                 playback.Stop();
@@ -335,7 +338,7 @@ public class MainWindow : Window
     {
         if (playback.NowPlaying is not Track track)
         {
-            nowPlayingLabel.Text = $"nothing playing   vol {playback.Volume}%";
+            nowPlayingLabel.Text = $"nothing playing   vol {playback.Volume}%   {AutoplayText()}";
             return;
         }
 
@@ -348,8 +351,10 @@ public class MainWindow : Window
         var state = playback.Paused ? "paused " : "playing";
 
         nowPlayingLabel.Text =
-            $"{state}  {track.Title} - {track.Artist}   {Time(position)} / {Time(duration)}  [{bar}]  vol {playback.Volume}%";
+            $"{state}  {track.Title} - {track.Artist}   {Time(position)} / {Time(duration)}  [{bar}]  vol {playback.Volume}%   {AutoplayText()}";
     }
+
+    string AutoplayText() => playback.Autoplay ? "autoplay on" : "autoplay off";
 
     static string Time(TimeSpan t) => $"{(int)t.TotalMinutes}:{t.Seconds:00}";
 }

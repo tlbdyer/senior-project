@@ -11,7 +11,7 @@ public sealed class VlcPlayer : IPlayer, IDisposable
     // counts Play calls, so an end that arrives after the user already skipped is ignored
     int playCount;
 
-    public event Action? TrackEnded;
+    public event Action<bool>? TrackEnded;
 
     // libvlc raises its events on its own thread and deadlocks if you call back into it from there,
     // so the end of a track is handed to dispatch, which runs it on the app's thread
@@ -22,17 +22,17 @@ public sealed class VlcPlayer : IPlayer, IDisposable
         player = new MediaPlayer(libvlc);
 
         // a stream that fails (server gone, broken file) is skipped like one that ended
-        player.EncounteredError += (_, _) => Ended(dispatch);
-        player.EndReached += (_, _) => Ended(dispatch);
+        player.EncounteredError += (_, _) => Ended(dispatch, played: false);
+        player.EndReached += (_, _) => Ended(dispatch, played: true);
     }
 
-    void Ended(Action<Action> dispatch)
+    void Ended(Action<Action> dispatch, bool played)
     {
         var ended = playCount;
         dispatch(() =>
         {
             if (ended == playCount)
-                TrackEnded?.Invoke();
+                TrackEnded?.Invoke(played);
         });
     }
 
